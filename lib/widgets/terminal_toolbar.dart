@@ -95,6 +95,7 @@ class TerminalToolbar extends StatelessWidget {
       _buildToggleButton(context, 'Alt', altActive, onAltToggle, vertical),
       _buildKeyButton(context, 'Esc', '\x1b', vertical),
       _buildKeyButton(context, 'Tab', '\t', vertical),
+      _buildKeyButton(context, 'S-Tab', '\x1b[Z', vertical),
       _buildKeyButton(context, '\u2191', '\x1b[A', vertical),
       _buildKeyButton(context, '\u2193', '\x1b[B', vertical),
       _buildKeyButton(context, '\u2190', '\x1b[D', vertical),
