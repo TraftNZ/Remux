@@ -38,7 +38,13 @@ class MoshDartService {
           : null,
     );
 
-    final sshSession = await client.execute('mosh-server');
+    // Run mosh-server with an explicit UTF-8 locale so it interprets PTY bytes
+    // as UTF-8 rather than Latin-1.  Without this, multi-byte Unicode chars
+    // (U+0080+) are mangled into their per-byte Latin-1 equivalents (e.g. '✓'
+    // becomes 'â').  The -l flag also propagates the locale to the child shell.
+    final sshSession = await client.execute(
+      'LANG=en_US.UTF-8 mosh-server new -l LANG=en_US.UTF-8',
+    );
     final outputBuf = StringBuffer();
     String? moshLine;
     await for (final chunk in sshSession.stdout) {

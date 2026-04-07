@@ -34,17 +34,23 @@ enum AppAccentColor {
       };
 }
 
+const double terminalFontSizeMin = 8.0;
+const double terminalFontSizeMax = 28.0;
+const double terminalFontSizeDefault = 14.0;
+
 class AppSettings {
   final TabPosition tabPosition;
   final AppThemeMode appThemeMode;
   final AppAccentColor accentColor;
   final TerminalColorScheme terminalColorScheme;
+  final double terminalFontSize;
 
   const AppSettings({
     this.tabPosition = TabPosition.top,
     this.appThemeMode = AppThemeMode.system,
     this.accentColor = AppAccentColor.teal,
     this.terminalColorScheme = TerminalColorScheme.vscodeDefault,
+    this.terminalFontSize = terminalFontSizeDefault,
   });
 
   AppSettings copyWith({
@@ -52,12 +58,14 @@ class AppSettings {
     AppThemeMode? appThemeMode,
     AppAccentColor? accentColor,
     TerminalColorScheme? terminalColorScheme,
+    double? terminalFontSize,
   }) {
     return AppSettings(
       tabPosition: tabPosition ?? this.tabPosition,
       appThemeMode: appThemeMode ?? this.appThemeMode,
       accentColor: accentColor ?? this.accentColor,
       terminalColorScheme: terminalColorScheme ?? this.terminalColorScheme,
+      terminalFontSize: terminalFontSize ?? this.terminalFontSize,
     );
   }
 
@@ -66,6 +74,7 @@ class AppSettings {
         'appThemeMode': appThemeMode.name,
         'accentColor': accentColor.name,
         'terminalColorScheme': terminalColorScheme.name,
+        'terminalFontSize': terminalFontSize,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -86,6 +95,8 @@ class AppSettings {
         (e) => e.name == json['terminalColorScheme'],
         orElse: () => TerminalColorScheme.vscodeDefault,
       ),
+      terminalFontSize: (json['terminalFontSize'] as num?)?.toDouble()
+          ?? terminalFontSizeDefault,
     );
   }
 

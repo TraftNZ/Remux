@@ -41,4 +41,10 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     final current = state.valueOrNull ?? const AppSettings();
     await save(current.copyWith(terminalColorScheme: scheme));
   }
+
+  Future<void> setFontSize(double size) async {
+    final clamped = size.clamp(terminalFontSizeMin, terminalFontSizeMax);
+    final current = state.valueOrNull ?? const AppSettings();
+    await save(current.copyWith(terminalFontSize: clamped));
+  }
 }

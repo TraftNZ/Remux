@@ -122,6 +122,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     final tabPosition = settings?.tabPosition ?? TabPosition.top;
     final terminalTheme = settings?.terminalColorScheme.theme
         ?? TerminalColorScheme.vscodeDefault.theme;
+    final fontSize = settings?.terminalFontSize ?? terminalFontSizeDefault;
 
     final sessionControls = (
       onTap: (int i) => ref.read(sessionProvider.notifier).setActiveIndex(i),
@@ -137,7 +138,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
           autofocus: true,
           theme: terminalTheme,
           textStyle: TerminalStyle(
-            fontSize: 14,
+            fontSize: fontSize,
             fontFamily: 'monospace',
             fontFamilyFallback: _terminalFontFallback,
           ),

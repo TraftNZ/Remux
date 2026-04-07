@@ -16,6 +16,7 @@ class SettingsScreen extends ConsumerWidget {
     final accentColor = settings?.accentColor ?? AppAccentColor.teal;
     final terminalColorScheme =
         settings?.terminalColorScheme ?? TerminalColorScheme.vscodeDefault;
+    final fontSize = settings?.terminalFontSize ?? terminalFontSizeDefault;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -25,8 +26,28 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.text_fields),
             title: const Text('Font Size'),
-            subtitle: const Text('14'),
-            onTap: () {},
+            subtitle: Text('${fontSize.toStringAsFixed(0)} pt'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.remove),
+                  onPressed: fontSize > terminalFontSizeMin
+                      ? () => ref
+                          .read(settingsProvider.notifier)
+                          .setFontSize(fontSize - 1)
+                      : null,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: fontSize < terminalFontSizeMax
+                      ? () => ref
+                          .read(settingsProvider.notifier)
+                          .setFontSize(fontSize + 1)
+                      : null,
+                ),
+              ],
+            ),
           ),
           const _SectionHeader('Appearance'),
           Padding(
