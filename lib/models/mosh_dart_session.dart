@@ -46,7 +46,8 @@ class MoshDartSession extends TerminalSession {
   }
 
   void _onTick() {
-    if (pendingKeys.isNotEmpty) {
+    // Only send a new state when the previous one has been acked.
+    if (!transport.hasPendingState && pendingKeys.isNotEmpty) {
       final batch = List<UserInstruction>.from(pendingKeys);
       pendingKeys.clear();
       try {

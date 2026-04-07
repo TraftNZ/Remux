@@ -104,6 +104,8 @@ class MoshDartService {
       }
     };
 
+    // Send initial terminal size so mosh-server knows dimensions immediately
+    session.pendingKeys.add(UserInstruction(width: 80, height: 24));
     session.startTick();
     transport.forceNextSend();
 
