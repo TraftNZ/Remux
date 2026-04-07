@@ -4,12 +4,14 @@ class TerminalToolbar extends StatefulWidget {
   final void Function(String key) onKey;
   final VoidCallback onSnippets;
   final bool vertical;
+  final VoidCallback? onSidebar;
 
   const TerminalToolbar({
     super.key,
     required this.onKey,
     required this.onSnippets,
     this.vertical = false,
+    this.onSidebar,
   });
 
   @override
@@ -83,6 +85,10 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
           );
 
     return [
+      if (widget.onSidebar != null) ...[
+        _buildSidebarButton(vertical),
+        divider,
+      ],
       _buildSnippetButton(vertical),
       divider,
       _buildToggleButton('Ctrl', _ctrlActive, () {
@@ -116,6 +122,14 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
       _buildKeyButton('-', '-', vertical),
       _buildKeyButton('_', '_', vertical),
     ];
+  }
+
+  Widget _buildSidebarButton(bool vertical) {
+    return IconButton(
+      icon: const Icon(Icons.menu, size: 20),
+      tooltip: 'Show sidebar',
+      onPressed: widget.onSidebar,
+    );
   }
 
   Widget _buildSnippetButton(bool vertical) {

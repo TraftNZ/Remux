@@ -32,25 +32,18 @@ class SessionSidebar extends StatelessWidget {
       color: colorScheme.surfaceContainerHighest,
       child: Column(
         children: [
-          // Top row: home + collapse
-          Row(
-            children: [
-              Expanded(
-                child: _SidebarIconButton(
-                  icon: Icons.home_outlined,
-                  tooltip: 'Dashboard (keep sessions alive)',
-                  onPressed: onHide,
-                ),
+          // Top row: collapse button (only when collapsible)
+          if (onCollapse != null) ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: _SidebarIconButton(
+                icon: Icons.chevron_left,
+                tooltip: 'Collapse sidebar',
+                onPressed: onCollapse!,
               ),
-              if (onCollapse != null)
-                _SidebarIconButton(
-                  icon: Icons.chevron_left,
-                  tooltip: 'Collapse sidebar',
-                  onPressed: onCollapse!,
-                ),
-            ],
-          ),
-          const Divider(height: 1),
+            ),
+            const Divider(height: 1),
+          ],
           // Session list
           Expanded(
             child: ListView.builder(
@@ -68,11 +61,24 @@ class SessionSidebar extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          // Add session button
-          _SidebarIconButton(
-            icon: Icons.add,
-            tooltip: 'New session',
-            onPressed: onAddSession,
+          // Bottom row: dashboard + new session
+          Row(
+            children: [
+              Expanded(
+                child: _SidebarIconButton(
+                  icon: Icons.home_outlined,
+                  tooltip: 'Dashboard (keep sessions alive)',
+                  onPressed: onHide,
+                ),
+              ),
+              Expanded(
+                child: _SidebarIconButton(
+                  icon: Icons.add,
+                  tooltip: 'New session',
+                  onPressed: onAddSession,
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -223,24 +223,19 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     required dynamic sessionState,
     required dynamic sessionControls,
   }) {
+    final VoidCallback? sidebarCallback = useDrawer
+        ? openDrawer
+        : (!_sidebarVisible ? () => setState(() => _sidebarVisible = true) : null);
+
     final toolbar = TerminalToolbar(
       onKey: (key) => sessionState.activeSession!.terminal.textInput(key),
       onSnippets: () => _showSnippetDrawer(context),
       vertical: isWide,
+      onSidebar: sidebarCallback,
     );
 
     if (tabPosition == TabPosition.left) {
-      Widget leftPanel;
-      if (useDrawer) {
-        // Mobile: thin strip with hamburger to open the system drawer
-        leftPanel = _DrawerToggleStrip(onOpen: openDrawer);
-      } else if (_sidebarVisible) {
-        leftPanel = sidebar;
-      } else {
-        leftPanel = _SidebarExpandButton(
-          onExpand: () => setState(() => _sidebarVisible = true),
-        );
-      }
+      final Widget leftPanel = (!useDrawer && _sidebarVisible) ? sidebar : const SizedBox.shrink();
 
       return Column(
         children: [
@@ -340,48 +335,6 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
           },
         );
       },
-    );
-  }
-}
-
-// ── Sidebar expand button (shown when sidebar is collapsed) ──────────────────
-
-class _DrawerToggleStrip extends StatelessWidget {
-  final VoidCallback onOpen;
-  const _DrawerToggleStrip({required this.onOpen});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onOpen,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 20,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(
-          child: Icon(Icons.menu, size: 14),
-        ),
-      ),
-    );
-  }
-}
-
-class _SidebarExpandButton extends StatelessWidget {
-  final VoidCallback onExpand;
-  const _SidebarExpandButton({required this.onExpand});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onExpand,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 20,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(
-          child: Icon(Icons.chevron_right, size: 16),
-        ),
-      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -101,6 +102,18 @@ class MoshService {
         try { await tempKeyFile.delete(); } catch (e) { /* ignore */ }
       }
     });
+
+    if (connection.tmuxSession != null && connection.tmuxSession!.isNotEmpty) {
+      final safeName =
+          connection.tmuxSession!.replaceAll(RegExp(r'[^\w\-]'), '');
+      if (safeName.isNotEmpty) {
+        Future.delayed(const Duration(milliseconds: 800), () {
+          pty.write(Uint8List.fromList(utf8.encode(
+            'tmux attach-session -t $safeName || tmux new-session -s $safeName\n',
+          )));
+        });
+      }
+    }
 
     return session;
   }

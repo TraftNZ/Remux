@@ -109,6 +109,22 @@ class MoshDartService {
     session.startTick();
     transport.forceNextSend();
 
+    if (connection.tmuxSession != null && connection.tmuxSession!.isNotEmpty) {
+      final safeName =
+          connection.tmuxSession!.replaceAll(RegExp(r'[^\w\-]'), '');
+      if (safeName.isNotEmpty) {
+        Future.delayed(const Duration(milliseconds: 800), () {
+          session.pendingKeys.add(
+            UserInstruction(
+              keys: Uint8List.fromList(utf8.encode(
+                'tmux attach-session -t $safeName || tmux new-session -s $safeName\n',
+              )),
+            ),
+          );
+        });
+      }
+    }
+
     return session;
   }
 
