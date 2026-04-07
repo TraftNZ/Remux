@@ -17,6 +17,16 @@ import '../widgets/session_sidebar.dart';
 import '../widgets/terminal_toolbar.dart';
 import '../widgets/session_tabs.dart';
 
+
+/// Wraps a plain function as a [TerminalInputHandler].
+class _FnInputHandler implements TerminalInputHandler {
+  final String? Function(TerminalKeyboardEvent) fn;
+  const _FnInputHandler(this.fn);
+
+  @override
+  String? call(TerminalKeyboardEvent event) => fn(event);
+}
+
 class TerminalScreen extends ConsumerStatefulWidget {
   const TerminalScreen({super.key});
 
@@ -30,6 +40,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   late final AppLifecycleListener _lifecycleListener;
   bool _sidebarVisible = true;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _terminalFocusNode = FocusNode();
+
+  // Sticky modifier state shared between the toolbar and the hardware key handler.
+  bool _ctrlModifier = false;
+  bool _altModifier = false;
 
   /// Platform-aware CJK font fallback so Chinese/Japanese/Korean characters
   /// render using a font that's actually present on the device.
@@ -62,25 +77,55 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   void initState() {
     super.initState();
 
-    // Reconnect any disconnected sessions when app returns to foreground
-    _lifecycleListener = AppLifecycleListener(
-      onResume: _onAppResumed,
-    );
+    _lifecycleListener = AppLifecycleListener(onResume: _onAppResumed);
 
-    // Mark existing sessions ready after the first frame — by this point
-    // TerminalView has been laid out and can safely receive writes.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       for (final s in ref.read(sessionProvider).sessions) {
         s.markTerminalReady();
+        _attachInputHandler(s.terminal);
       }
     });
   }
 
   @override
   void dispose() {
+    _terminalFocusNode.dispose();
     _lifecycleListener.dispose();
     super.dispose();
+  }
+
+  /// Sets a custom [TerminalInputHandler] on [terminal] that merges the
+  /// sticky toolbar modifier with whatever modifier the event already carries.
+  ///
+  /// This intercepts **both** paths that xterm uses to deliver key input:
+  ///   • Hardware keyboard path: _handleKeyEvent → keyInput(key, ctrl: true)
+  ///   • IME/soft-keyboard path: _onInsert → keyInput(key)  ← ctrl lost here
+  ///
+  /// By sitting inside [inputHandler] we see every key before xterm converts
+  /// it, so we can inject the sticky Ctrl/Alt before defaultInputHandler runs.
+  void _attachInputHandler(Terminal terminal) {
+    terminal.inputHandler = _FnInputHandler((event) {
+      final ctrl = event.ctrl || _ctrlModifier;
+      final alt = !ctrl && (event.alt || _altModifier);
+
+      final modified = event.copyWith(ctrl: ctrl, alt: alt);
+      final result = defaultInputHandler(modified);
+
+      // Clear the sticky modifier only when a key was actually consumed.
+      if (result != null && (_ctrlModifier || _altModifier)) {
+        Future.microtask(() {
+          if (mounted) {
+            setState(() {
+              _ctrlModifier = false;
+              _altModifier = false;
+            });
+          }
+        });
+      }
+
+      return result;
+    });
   }
 
   void _onAppResumed() {
@@ -103,7 +148,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       }
       if (next.sessions.length > (prev?.sessions.length ?? 0)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) next.sessions.last.markTerminalReady();
+          if (!mounted) return;
+          final s = next.sessions.last;
+          s.markTerminalReady();
+          _attachInputHandler(s.terminal);
         });
       }
     });
@@ -135,6 +183,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       children: [
         TerminalView(
           activeSession.terminal,
+          focusNode: _terminalFocusNode,
           autofocus: true,
           deleteDetection: true,
           theme: terminalTheme,
@@ -230,7 +279,22 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         : (!_sidebarVisible ? () => setState(() => _sidebarVisible = true) : null);
 
     final toolbar = TerminalToolbar(
-      onKey: (key) => sessionState.activeSession!.terminal.textInput(key),
+      ctrlActive: _ctrlModifier,
+      altActive: _altModifier,
+      onCtrlToggle: () => setState(() {
+        _ctrlModifier = !_ctrlModifier;
+        if (_ctrlModifier) _altModifier = false;
+      }),
+      onAltToggle: () => setState(() {
+        _altModifier = !_altModifier;
+        if (_altModifier) _ctrlModifier = false;
+      }),
+      onKey: (key) {
+        sessionState.activeSession!.terminal.textInput(key);
+        // Restore focus to terminal after any toolbar tap so the hardware
+        // key handler and xterm both keep receiving keyboard events.
+        _terminalFocusNode.requestFocus();
+      },
       onSnippets: () => _showSnippetDrawer(context),
       vertical: isWide,
       onSidebar: sidebarCallback,

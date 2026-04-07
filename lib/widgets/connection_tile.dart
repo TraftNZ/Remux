@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -80,9 +81,20 @@ class _ConnectionTileState extends ConsumerState<ConnectionTile> {
                   ),
             enabled: !_connecting,
             onTap: _connecting ? null : _connect,
+            onLongPress: _connecting ? null : _copyHost,
           ),
           if (_connecting) const LinearProgressIndicator(minHeight: 2),
         ],
+      ),
+    );
+  }
+
+  void _copyHost() {
+    Clipboard.setData(ClipboardData(text: widget.connection.host));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copied: ${widget.connection.host}'),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/connection.dart';
@@ -66,6 +69,7 @@ class SessionNotifier extends Notifier<SessionState> {
         sessions: [...state.sessions, session],
         activeIndex: state.sessions.length,
       );
+      unawaited(_syncForegroundService());
     } catch (e) {
       session?.dispose();
       rethrow;
@@ -80,6 +84,7 @@ class SessionNotifier extends Notifier<SessionState> {
       sessions: [...state.sessions, session],
       activeIndex: state.sessions.length,
     );
+    unawaited(_syncForegroundService());
   }
 
   // ── Mosh ─────────────────────────────────────────────────────────────────
@@ -99,6 +104,7 @@ class SessionNotifier extends Notifier<SessionState> {
         sessions: [...state.sessions, session],
         activeIndex: state.sessions.length,
       );
+      unawaited(_syncForegroundService());
     } catch (e) {
       session?.dispose();
       rethrow;
@@ -122,6 +128,7 @@ class SessionNotifier extends Notifier<SessionState> {
         ? (updated.isEmpty ? 0 : updated.length - 1)
         : state.activeIndex;
     state = state.copyWith(sessions: updated, activeIndex: newIndex);
+    unawaited(_syncForegroundService());
   }
 
   void sendSnippet(String command) {
@@ -146,6 +153,34 @@ class SessionNotifier extends Notifier<SessionState> {
     session.isReconnecting = true;
     state = state.copyWith(sessions: [...state.sessions]);
     _reconnectWithBackoff(session);
+  }
+
+  // ── Foreground service ────────────────────────────────────────────────────
+
+  Future<void> _syncForegroundService() async {
+    if (!Platform.isAndroid) return;
+    final count = state.sessions.length;
+    if (count == 0) {
+      await FlutterForegroundTask.stopService();
+      return;
+    }
+    final permission = await FlutterForegroundTask.checkNotificationPermission();
+    if (permission != NotificationPermission.granted) {
+      await FlutterForegroundTask.requestNotificationPermission();
+    }
+    final text = count == 1 ? '1 active session' : '$count active sessions';
+    if (await FlutterForegroundTask.isRunningService) {
+      await FlutterForegroundTask.updateService(
+        notificationTitle: 'Remux',
+        notificationText: text,
+      );
+    } else {
+      await FlutterForegroundTask.startService(
+        serviceId: 256,
+        notificationTitle: 'Remux',
+        notificationText: text,
+      );
+    }
   }
 
   // ── Auto-reconnect (SSH only) ─────────────────────────────────────────────
