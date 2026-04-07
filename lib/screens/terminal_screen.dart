@@ -136,6 +136,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         TerminalView(
           activeSession.terminal,
           autofocus: true,
+          deleteDetection: true,
           theme: terminalTheme,
           textStyle: TerminalStyle(
             fontSize: fontSize,
