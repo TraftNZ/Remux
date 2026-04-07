@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,6 +6,8 @@ import '../models/connection.dart';
 import '../providers/connections_provider.dart';
 import '../providers/identities_provider.dart';
 import '../providers/session_provider.dart';
+
+enum _ConnectionAction { edit, duplicate }
 
 class ConnectionTile extends ConsumerStatefulWidget {
   final Connection connection;
@@ -74,14 +75,36 @@ class _ConnectionTileState extends ConsumerState<ConnectionTile> {
             ),
             trailing: _connecting
                 ? null
-                : IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => context
-                        .push('/connection/edit/${widget.connection.id}'),
+                : PopupMenuButton<_ConnectionAction>(
+                    onSelected: (action) {
+                      switch (action) {
+                        case _ConnectionAction.edit:
+                          context.push('/connection/edit/${widget.connection.id}');
+                        case _ConnectionAction.duplicate:
+                          _duplicateConnection();
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: _ConnectionAction.edit,
+                        child: ListTile(
+                          leading: Icon(Icons.edit),
+                          title: Text('Edit'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _ConnectionAction.duplicate,
+                        child: ListTile(
+                          leading: Icon(Icons.copy),
+                          title: Text('Duplicate'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
                   ),
             enabled: !_connecting,
             onTap: _connecting ? null : _connect,
-            onLongPress: _connecting ? null : _copyHost,
           ),
           if (_connecting) const LinearProgressIndicator(minHeight: 2),
         ],
@@ -89,14 +112,20 @@ class _ConnectionTileState extends ConsumerState<ConnectionTile> {
     );
   }
 
-  void _copyHost() {
-    Clipboard.setData(ClipboardData(text: widget.connection.host));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Copied: ${widget.connection.host}'),
-        duration: const Duration(seconds: 2),
-      ),
+  Future<void> _duplicateConnection() async {
+    final duplicate = widget.connection.copyWith(
+      id: '',
+      name: '${widget.connection.name} (copy)',
     );
+    await ref.read(connectionsProvider.notifier).add(duplicate);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Duplicated: ${widget.connection.name}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _connect() async {
