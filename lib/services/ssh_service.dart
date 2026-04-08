@@ -77,9 +77,13 @@ class SshService {
 
     session.setSubscriptions(stdout: stdoutSub, stderr: stderrSub);
 
-    // Pipe terminal user input → remote stdin
+    // Pipe terminal user input → remote stdin.
+    // Replace \n with \r so soft-keyboard Enter behaves like hardware Enter.
+    // xterm routes IME Enter as textInput('\n') → onOutput('\n'), but SSH
+    // shells expect \r for Enter. This survives reconnects since it is set
+    // here rather than in a post-frame callback that only runs on new sessions.
     terminal.onOutput = (data) {
-      shell.write(utf8.encode(data));
+      shell.write(utf8.encode(data.replaceAll('\n', '\r')));
     };
 
     // Sync terminal resize to remote PTY

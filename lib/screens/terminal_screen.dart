@@ -126,14 +126,6 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
 
       return result;
     });
-
-    // Fix soft-keyboard Enter: the IME fires TextInputAction.newline which
-    // xterm ignores, so the character \n lands via textInput() → onOutput().
-    // Terminals expect \r for Enter, so we replace it here.
-    final prevOnOutput = terminal.onOutput;
-    terminal.onOutput = (String data) {
-      prevOnOutput?.call(data.replaceAll('\n', '\r'));
-    };
   }
 
   void _onAppResumed() {
