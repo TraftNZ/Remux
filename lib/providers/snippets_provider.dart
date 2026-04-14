@@ -21,7 +21,7 @@ class SnippetsNotifier extends AsyncNotifier<List<Snippet>> {
         Snippet(
           id: _uuid.v4(),
           name: 'Claude Code',
-          command: 'claude --dangerously-skip-permissions',
+          command: 'claude',
           group: 'AI',
         ),
         Snippet(
