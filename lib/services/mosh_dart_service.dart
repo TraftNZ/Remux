@@ -110,8 +110,16 @@ class MoshDartService {
       }
     };
 
-    // Send initial terminal size so mosh-server knows dimensions immediately
-    session.pendingKeys.add(UserInstruction(width: 80, height: 24));
+    // Send initial terminal size so mosh-server knows dimensions immediately.
+    // Use the Terminal's current view size rather than a hardcoded 80x24: on
+    // reconnect existingTerminal is already laid out at the widget's real
+    // size and terminal.onResize won't fire again (the widget hasn't changed
+    // size), so mosh-server would otherwise stay at 80x24 and tmux would
+    // leave a large blank area below its last row inside the larger view.
+    session.pendingKeys.add(UserInstruction(
+      width: terminal.viewWidth,
+      height: terminal.viewHeight,
+    ));
     session.startTick();
     transport.forceNextSend();
 

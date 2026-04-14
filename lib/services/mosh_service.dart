@@ -96,6 +96,14 @@ class MoshService {
 
     terminal.onResize = (w, h, pw, ph) => pty.resize(h, w);
 
+    // Sync the freshly-started PTY to the Terminal's current view size before
+    // the delayed tmux-attach runs. On reconnect existingTerminal is already
+    // laid out at the widget's real size and terminal.onResize won't fire
+    // again; without this, tmux would attach at the flutter_pty default and
+    // draw only to that smaller size forever, leaving a large blank gap
+    // beneath tmux's last row inside the larger TerminalView.
+    pty.resize(terminal.viewHeight, terminal.viewWidth);
+
     pty.exitCode.then((_) async {
       session.isConnected = false;
       if (tempKeyFile != null) {
