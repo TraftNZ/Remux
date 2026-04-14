@@ -91,6 +91,18 @@ class SshService {
       shell.resizeTerminal(width, height);
     };
 
+    // Sync the freshly-opened PTY to the Terminal's current view size BEFORE
+    // any startup/tmux command runs. This matters most for reconnects: the
+    // existingTerminal is already laid out at the widget's real size (e.g.
+    // 100x40), but the new PTY was opened at the 80x24 default and
+    // terminal.onResize won't fire on its own because the widget size hasn't
+    // changed. Without this, `tmux attach-session` runs at 80x24 and tmux
+    // keeps drawing to 24 rows forever, leaving a large blank area below
+    // tmux's last row (same appearance as a keyboard-sized gap) inside the
+    // larger TerminalView. On initial connect this is harmless — the first
+    // TerminalView layout will resize again to the measured size.
+    shell.resizeTerminal(terminal.viewWidth, terminal.viewHeight);
+
     // Auto-attach to tmux session if configured
     if (connection.tmuxSession != null && connection.tmuxSession!.isNotEmpty) {
       final safeName =
