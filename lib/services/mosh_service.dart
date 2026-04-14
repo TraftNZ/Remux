@@ -11,6 +11,7 @@ import '../models/mosh_dart_session.dart';
 import '../models/mosh_session.dart';
 import '../models/terminal_session.dart';
 import 'mosh_dart_service.dart';
+import 'terminal_enter.dart';
 
 class MoshService {
   final MoshDartService _dartService = MoshDartService();
@@ -91,7 +92,8 @@ class MoshService {
     });
 
     terminal.onOutput = (data) {
-      pty.write(Uint8List.fromList(data.codeUnits));
+      // Normalize soft-keyboard Enter so TUIs see '\r' like hardware Enter.
+      pty.write(Uint8List.fromList(normalizeSoftEnter(data).codeUnits));
     };
 
     terminal.onResize = (w, h, pw, ph) => pty.resize(h, w);
