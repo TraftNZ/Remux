@@ -11,6 +11,7 @@ import 'package:xterm/xterm.dart';
 import '../models/connection.dart';
 import '../models/identity.dart';
 import '../models/mosh_dart_session.dart';
+import 'terminal_enter.dart';
 
 final RegExp _kMoshConnectRegex =
     RegExp(r'MOSH CONNECT (\d+) ([A-Za-z0-9/+]+={0,2})');
@@ -99,8 +100,12 @@ class MoshDartService {
     });
 
     terminal.onOutput = (data) {
+      // Normalize soft-keyboard Enter so TUIs (tmux, Claude Code, etc.)
+      // see the same '\r' that hardware Enter produces.
       session.pendingKeys.add(
-        UserInstruction(keys: Uint8List.fromList(utf8.encode(data))),
+        UserInstruction(
+          keys: Uint8List.fromList(utf8.encode(normalizeSoftEnter(data))),
+        ),
       );
     };
 

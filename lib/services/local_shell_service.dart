@@ -5,6 +5,7 @@ import 'package:flutter_pty/flutter_pty.dart';
 import 'package:xterm/xterm.dart';
 
 import '../models/local_session.dart';
+import 'terminal_enter.dart';
 
 class LocalShellService {
   LocalSession connect({Terminal? existingTerminal}) {
@@ -42,7 +43,9 @@ class LocalShellService {
       session.isConnected = false;
     });
 
-    terminal.onOutput = (data) => pty.write(Uint8List.fromList(data.codeUnits));
+    // Normalize soft-keyboard Enter so TUIs see '\r' like hardware Enter.
+    terminal.onOutput = (data) =>
+        pty.write(Uint8List.fromList(normalizeSoftEnter(data).codeUnits));
     terminal.onResize = (width, height, pw, ph) => pty.resize(height, width);
 
     return session;

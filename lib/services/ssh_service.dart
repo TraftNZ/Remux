@@ -6,6 +6,7 @@ import 'package:xterm/xterm.dart';
 import '../models/connection.dart';
 import '../models/identity.dart';
 import '../models/session.dart';
+import 'terminal_enter.dart';
 
 class SshService {
   Future<SshSessionState> connect({
@@ -78,12 +79,11 @@ class SshService {
     session.setSubscriptions(stdout: stdoutSub, stderr: stderrSub);
 
     // Pipe terminal user input → remote stdin.
-    // Replace \n with \r so soft-keyboard Enter behaves like hardware Enter.
-    // xterm routes IME Enter as textInput('\n') → onOutput('\n'), but SSH
-    // shells expect \r for Enter. This survives reconnects since it is set
-    // here rather than in a post-frame callback that only runs on new sessions.
+    // Normalize soft-keyboard Enter ('\n' / '\r\n') to '\r' so IME Enter
+    // behaves like hardware Enter; see [normalizeSoftEnter]. Set here (not
+    // in a post-frame callback) so the mapping survives reconnects.
     terminal.onOutput = (data) {
-      shell.write(utf8.encode(data.replaceAll('\n', '\r')));
+      shell.write(utf8.encode(normalizeSoftEnter(data)));
     };
 
     // Sync terminal resize to remote PTY
