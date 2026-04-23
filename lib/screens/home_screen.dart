@@ -62,7 +62,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
         if (isWide) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Remux')),
+            appBar: AppBar(
+              title: const Text('Remux'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  tooltip: _addTooltip,
+                  onPressed: _onAddPressed,
+                ),
+              ],
+            ),
             body: Row(
               children: [
                 NavigationRail(
@@ -97,11 +106,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           tooltip: 'Settings',
                           onPressed: () => context.push('/settings'),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.add),
-                          tooltip: 'Add',
-                          onPressed: _onFabPressed,
-                        ),
                       ],
                     ),
                   ),
@@ -127,16 +131,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onPressed: () => context.push('/terminal'),
                 ),
               IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: _addTooltip,
+                onPressed: _onAddPressed,
+              ),
+              IconButton(
                 icon: const Icon(Icons.settings),
                 onPressed: () => context.push('/settings'),
               ),
             ],
           ),
           body: body,
-          floatingActionButton: FloatingActionButton(
-            onPressed: _onFabPressed,
-            child: const Icon(Icons.add),
-          ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _currentTab,
             onDestinationSelected: (i) => setState(() => _currentTab = i),
@@ -147,14 +152,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _onFabPressed() {
+  String get _addTooltip {
     switch (_currentTab) {
-      case 0:
-        context.push('/connection/add');
+      case 1:
+        return 'Add snippet';
+      case 2:
+        return 'Add identity';
+      default:
+        return 'Add connection';
+    }
+  }
+
+  void _onAddPressed() {
+    switch (_currentTab) {
       case 1:
         context.push('/snippet/add');
       case 2:
         context.push('/identity/add');
+      default:
+        context.push('/connection/add');
     }
   }
 }

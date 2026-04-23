@@ -9,6 +9,8 @@ class TerminalToolbar extends StatelessWidget {
   final bool altActive;
   final VoidCallback onCtrlToggle;
   final VoidCallback onAltToggle;
+  final VoidCallback? onKeyboardToggle;
+  final bool softKeyboardVisible;
 
   const TerminalToolbar({
     super.key,
@@ -20,6 +22,8 @@ class TerminalToolbar extends StatelessWidget {
     required this.altActive,
     required this.onCtrlToggle,
     required this.onAltToggle,
+    this.onKeyboardToggle,
+    this.softKeyboardVisible = true,
   });
 
   @override
@@ -89,6 +93,7 @@ class TerminalToolbar extends StatelessWidget {
         _buildSidebarButton(),
         divider,
       ],
+      if (onKeyboardToggle != null) _buildKeyboardButton(),
       _buildSnippetButton(),
       divider,
       _buildToggleButton(context, 'Ctrl', ctrlActive, onCtrlToggle, vertical),
@@ -131,6 +136,17 @@ class TerminalToolbar extends StatelessWidget {
       icon: const Icon(Icons.code, size: 20),
       tooltip: 'Snippets',
       onPressed: onSnippets,
+    );
+  }
+
+  Widget _buildKeyboardButton() {
+    return IconButton(
+      icon: Icon(
+        softKeyboardVisible ? Icons.keyboard_hide : Icons.keyboard,
+        size: 20,
+      ),
+      tooltip: softKeyboardVisible ? 'Hide keyboard' : 'Show keyboard',
+      onPressed: onKeyboardToggle,
     );
   }
 

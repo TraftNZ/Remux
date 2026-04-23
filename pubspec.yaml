@@ -1,7 +1,7 @@
 name: remux
 description: "SSH terminal app for remote compute management"
 publish_to: 'none'
-version: 1.0.0+21
+version: 1.0.0+22
 
 environment:
   sdk: ^3.11.4

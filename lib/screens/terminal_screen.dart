@@ -128,6 +128,16 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     });
   }
 
+  void _toggleSoftKeyboard() {
+    final visible = MediaQuery.of(context).viewInsets.bottom > 0;
+    if (visible) {
+      SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+    } else {
+      _terminalFocusNode.requestFocus();
+      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    }
+  }
+
   void _onAppResumed() {
     final sessions = ref.read(sessionProvider).sessions;
     for (final s in sessions) {
@@ -278,6 +288,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         ? openDrawer
         : (!_sidebarVisible ? () => setState(() => _sidebarVisible = true) : null);
 
+    final isMobile = Platform.isAndroid || Platform.isIOS;
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+
     final toolbar = TerminalToolbar(
       ctrlActive: _ctrlModifier,
       altActive: _altModifier,
@@ -298,6 +311,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       onSnippets: () => _showSnippetDrawer(context),
       vertical: isWide,
       onSidebar: sidebarCallback,
+      onKeyboardToggle: isMobile ? _toggleSoftKeyboard : null,
+      softKeyboardVisible: keyboardVisible,
     );
 
     if (tabPosition == TabPosition.left) {
