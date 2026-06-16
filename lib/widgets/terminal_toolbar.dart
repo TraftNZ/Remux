@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-class TerminalToolbar extends StatelessWidget {
+enum _ToolbarGroup { primary, keys, tmux, fn }
+
+class TerminalToolbar extends StatefulWidget {
   final void Function(String key) onKey;
   final VoidCallback onSnippets;
   final bool vertical;
@@ -27,8 +29,17 @@ class TerminalToolbar extends StatelessWidget {
   });
 
   @override
+  State<TerminalToolbar> createState() => _TerminalToolbarState();
+}
+
+class _TerminalToolbarState extends State<TerminalToolbar> {
+  _ToolbarGroup _group = _ToolbarGroup.primary;
+
+  void _setGroup(_ToolbarGroup g) => setState(() => _group = g);
+
+  @override
   Widget build(BuildContext context) {
-    return vertical ? _buildVertical(context) : _buildHorizontal(context);
+    return widget.vertical ? _buildVertical(context) : _buildHorizontal(context);
   }
 
   Widget _buildHorizontal(BuildContext context) {
@@ -60,10 +71,56 @@ class TerminalToolbar extends StatelessWidget {
   }
 
   List<Widget> _buttons(BuildContext context, {required bool vertical}) {
-    final divider = vertical
-        ? const Divider(height: 1)
-        : const VerticalDivider(width: 1);
+    switch (_group) {
+      case _ToolbarGroup.primary:
+        return _primaryButtons(context, vertical);
+      case _ToolbarGroup.keys:
+        return _keysButtons(context, vertical);
+      case _ToolbarGroup.tmux:
+        return _tmuxButtons(context, vertical);
+      case _ToolbarGroup.fn:
+        return _fnButtons(context, vertical);
+    }
+  }
 
+  Widget _divider(bool vertical) =>
+      vertical ? const Divider(height: 1) : const VerticalDivider(width: 1);
+
+  List<Widget> _primaryButtons(BuildContext context, bool vertical) {
+    return [
+      if (widget.onSidebar != null) ...[
+        _buildSidebarButton(),
+        _divider(vertical),
+      ],
+      if (widget.onKeyboardToggle != null) _buildKeyboardButton(),
+      _buildSnippetButton(),
+      _divider(vertical),
+      _buildKeyButton(context, 'Enter', '\r', vertical),
+      _buildKeyButton(context, '\u2191', '\x1b[A', vertical),
+      _buildKeyButton(context, '\u2193', '\x1b[B', vertical),
+      _buildKeyButton(context, '\u2190', '\x1b[D', vertical),
+      _buildKeyButton(context, '\u2192', '\x1b[C', vertical),
+      _buildKeyButton(context, 'C-c', '\x03', vertical),
+      _divider(vertical),
+      _buildGroupButton(context, 'Keys', _ToolbarGroup.keys, vertical),
+      _buildGroupButton(context, 'tmux', _ToolbarGroup.tmux, vertical),
+      _buildGroupButton(context, 'Fn', _ToolbarGroup.fn, vertical),
+    ];
+  }
+
+  List<Widget> _keysButtons(BuildContext context, bool vertical) {
+    return [
+      _buildBackButton(),
+      _divider(vertical),
+      _buildToggleButton(context, 'Ctrl', widget.ctrlActive, widget.onCtrlToggle, vertical),
+      _buildToggleButton(context, 'Alt', widget.altActive, widget.onAltToggle, vertical),
+      _buildKeyButton(context, 'Esc', '\x1b', vertical),
+      _buildKeyButton(context, 'Tab', '\t', vertical),
+      _buildKeyButton(context, 'S-Tab', '\x1b[Z', vertical),
+    ];
+  }
+
+  List<Widget> _tmuxButtons(BuildContext context, bool vertical) {
     final tmuxLabel = vertical
         ? Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -89,37 +146,42 @@ class TerminalToolbar extends StatelessWidget {
           );
 
     return [
-      if (onSidebar != null) ...[
-        _buildSidebarButton(),
-        divider,
-      ],
-      if (onKeyboardToggle != null) _buildKeyboardButton(),
-      _buildSnippetButton(),
-      divider,
-      _buildToggleButton(context, 'Ctrl', ctrlActive, onCtrlToggle, vertical),
-      _buildToggleButton(context, 'Alt', altActive, onAltToggle, vertical),
-      _buildKeyButton(context, 'Esc', '\x1b', vertical),
-      _buildKeyButton(context, 'Tab', '\t', vertical),
-      _buildKeyButton(context, 'S-Tab', '\x1b[Z', vertical),
-      _buildKeyButton(context, 'Enter', '\r', vertical),
-      _buildKeyButton(context, '\u2191', '\x1b[A', vertical),
-      _buildKeyButton(context, '\u2193', '\x1b[B', vertical),
-      _buildKeyButton(context, '\u2190', '\x1b[D', vertical),
-      _buildKeyButton(context, '\u2192', '\x1b[C', vertical),
-      _buildKeyButton(context, 'C-c', '\x03', vertical),
-      divider,
+      _buildBackButton(),
+      _divider(vertical),
       tmuxLabel,
-      divider,
+      _divider(vertical),
       _buildTmuxButton('c', 'c', vertical),
       _buildTmuxButton('d', 'd', vertical),
       for (final i in List.generate(10, (n) => n))
         _buildTmuxButton('$i', '$i', vertical),
-      divider,
+      _divider(vertical),
       _buildTmuxButton('[', '[', vertical),
       _buildTmuxButton(']', ']', vertical),
-      divider,
+      _divider(vertical),
       _buildKeyButton(context, 'PgUp', '\x1b[5~', vertical),
       _buildKeyButton(context, 'PgDn', '\x1b[6~', vertical),
+    ];
+  }
+
+  List<Widget> _fnButtons(BuildContext context, bool vertical) {
+    const fnKeys = <({String label, String key})>[
+      (label: 'F1', key: '\x1bOP'),
+      (label: 'F2', key: '\x1bOQ'),
+      (label: 'F3', key: '\x1bOR'),
+      (label: 'F4', key: '\x1bOS'),
+      (label: 'F5', key: '\x1b[15~'),
+      (label: 'F6', key: '\x1b[17~'),
+      (label: 'F7', key: '\x1b[18~'),
+      (label: 'F8', key: '\x1b[19~'),
+      (label: 'F9', key: '\x1b[20~'),
+      (label: 'F10', key: '\x1b[21~'),
+      (label: 'F11', key: '\x1b[23~'),
+      (label: 'F12', key: '\x1b[24~'),
+    ];
+    return [
+      _buildBackButton(),
+      _divider(vertical),
+      for (final f in fnKeys) _buildKeyButton(context, f.label, f.key, vertical),
     ];
   }
 
@@ -127,7 +189,7 @@ class TerminalToolbar extends StatelessWidget {
     return IconButton(
       icon: const Icon(Icons.menu, size: 20),
       tooltip: 'Show sidebar',
-      onPressed: onSidebar,
+      onPressed: widget.onSidebar,
     );
   }
 
@@ -135,18 +197,48 @@ class TerminalToolbar extends StatelessWidget {
     return IconButton(
       icon: const Icon(Icons.code, size: 20),
       tooltip: 'Snippets',
-      onPressed: onSnippets,
+      onPressed: widget.onSnippets,
     );
   }
 
   Widget _buildKeyboardButton() {
     return IconButton(
       icon: Icon(
-        softKeyboardVisible ? Icons.keyboard_hide : Icons.keyboard,
+        widget.softKeyboardVisible ? Icons.keyboard_hide : Icons.keyboard,
         size: 20,
       ),
-      tooltip: softKeyboardVisible ? 'Hide keyboard' : 'Show keyboard',
-      onPressed: onKeyboardToggle,
+      tooltip: widget.softKeyboardVisible ? 'Hide keyboard' : 'Show keyboard',
+      onPressed: widget.onKeyboardToggle,
+    );
+  }
+
+  Widget _buildBackButton() {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back, size: 20),
+      tooltip: 'Back',
+      onPressed: () => _setGroup(_ToolbarGroup.primary),
+    );
+  }
+
+  Widget _buildGroupButton(BuildContext context, String label,
+      _ToolbarGroup target, bool vertical) {
+    return Padding(
+      padding: vertical
+          ? const EdgeInsets.symmetric(vertical: 1)
+          : const EdgeInsets.symmetric(horizontal: 2),
+      child: TextButton(
+        onPressed: () => _setGroup(target),
+        style: TextButton.styleFrom(
+          minimumSize: vertical ? const Size(48, 36) : const Size(44, 48),
+          padding: vertical
+              ? const EdgeInsets.symmetric(vertical: 4)
+              : const EdgeInsets.symmetric(horizontal: 8),
+        ),
+        child: Text(
+          '$label \u25b8',
+          style: TextStyle(fontSize: vertical ? 12 : 13),
+        ),
+      ),
     );
   }
 
@@ -183,7 +275,7 @@ class TerminalToolbar extends StatelessWidget {
           ? const EdgeInsets.symmetric(vertical: 1)
           : const EdgeInsets.symmetric(horizontal: 2),
       child: TextButton(
-        onPressed: () => onKey('\x02$key'),
+        onPressed: () => widget.onKey('\x02$key'),
         style: TextButton.styleFrom(
           minimumSize: vertical ? const Size(48, 34) : const Size(36, 40),
           padding: vertical
@@ -223,14 +315,14 @@ class TerminalToolbar extends StatelessWidget {
           : const EdgeInsets.symmetric(horizontal: 2),
       child: TextButton(
         onPressed: () {
-          if (ctrlActive) {
-            onKey(_applyCtrl(key));
-            onCtrlToggle(); // deactivate after use
-          } else if (altActive) {
-            onKey(_applyAlt(key));
-            onAltToggle(); // deactivate after use
+          if (widget.ctrlActive) {
+            widget.onKey(_applyCtrl(key));
+            widget.onCtrlToggle();
+          } else if (widget.altActive) {
+            widget.onKey(_applyAlt(key));
+            widget.onAltToggle();
           } else {
-            onKey(key);
+            widget.onKey(key);
           }
         },
         style: TextButton.styleFrom(
