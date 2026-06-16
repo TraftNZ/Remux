@@ -13,6 +13,7 @@ import '../providers/identities_provider.dart';
 import '../providers/session_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/snippets_provider.dart';
+import '../services/terminal_mouse.dart';
 import '../widgets/session_sidebar.dart';
 import '../widgets/terminal_toolbar.dart';
 import '../widgets/session_tabs.dart';
@@ -41,6 +42,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   bool _sidebarVisible = true;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _terminalFocusNode = FocusNode();
+  // Shared across sessions: only the active session's TerminalView is mounted
+  // at a time, so a single controller is enough to track the live selection
+  // for the toolbar Copy action.
+  final _terminalController = TerminalController();
 
   // Sticky modifier state shared between the toolbar and the hardware key handler.
   bool _ctrlModifier = false;
@@ -91,8 +96,35 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   @override
   void dispose() {
     _terminalFocusNode.dispose();
+    _terminalController.dispose();
     _lifecycleListener.dispose();
     super.dispose();
+  }
+
+  /// Copies the current terminal selection to the system clipboard. Selection
+  /// is made locally by the terminal widget (drag on desktop, long-press on
+  /// mobile) and is independent of the remote app's mouse mode.
+  Future<void> _copySelection() async {
+    final session = ref.read(sessionProvider).activeSession;
+    final range = _terminalController.selection;
+    final text = (session != null && range != null)
+        ? session.terminal.buffer.getText(range)
+        : '';
+
+    final messenger = ScaffoldMessenger.of(context);
+    if (text.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Nothing selected')),
+      );
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: text));
+    _terminalController.clearSelection();
+    if (!mounted) return;
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Copied to clipboard')),
+    );
   }
 
   /// Sets a custom [TerminalInputHandler] on [terminal] that merges the
@@ -105,6 +137,12 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   /// By sitting inside [inputHandler] we see every key before xterm converts
   /// it, so we can inject the sticky Ctrl/Alt before defaultInputHandler runs.
   void _attachInputHandler(Terminal terminal) {
+    // xterm 4.0.0 emits the wrong SGR ids for scroll-wheel events (68/69
+    // instead of 64/65), which full-screen apps like Claude/tmux read as
+    // Shift+wheel and ignore. Override the mouse handler so the terminal's own
+    // wheel→escape pipeline produces correct sequences. See [WheelFixMouseHandler].
+    terminal.mouseHandler = const WheelFixMouseHandler();
+
     terminal.inputHandler = _FnInputHandler((event) {
       final ctrl = event.ctrl || _ctrlModifier;
       final alt = !ctrl && (event.alt || _altModifier);
@@ -193,6 +231,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       children: [
         TerminalView(
           activeSession.terminal,
+          controller: _terminalController,
           focusNode: _terminalFocusNode,
           autofocus: true,
           deleteDetection: true,
@@ -249,6 +288,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         },
         const SingleActivator(LogicalKeyboardKey.keyT, control: true, shift: true): () =>
             _showConnectionPicker(context),
+        // Ctrl+Shift+C copies the selection; plain Ctrl+C stays as SIGINT to
+        // the terminal, matching standard terminal-emulator behavior.
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true, shift: true):
+            _copySelection,
       },
       child: Scaffold(
         key: _scaffoldKey,
@@ -309,6 +352,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         _terminalFocusNode.requestFocus();
       },
       onSnippets: () => _showSnippetDrawer(context),
+      onCopy: _copySelection,
       vertical: isWide,
       onSidebar: sidebarCallback,
       onKeyboardToggle: isMobile ? _toggleSoftKeyboard : null,

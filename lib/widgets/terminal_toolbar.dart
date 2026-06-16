@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../services/terminal_mouse.dart';
 
 enum _ToolbarGroup { primary, keys, tmux, fn }
 
 class TerminalToolbar extends StatefulWidget {
   final void Function(String key) onKey;
   final VoidCallback onSnippets;
+  final VoidCallback onCopy;
   final bool vertical;
   final VoidCallback? onSidebar;
   final bool ctrlActive;
@@ -18,6 +23,7 @@ class TerminalToolbar extends StatefulWidget {
     super.key,
     required this.onKey,
     required this.onSnippets,
+    required this.onCopy,
     this.vertical = false,
     this.onSidebar,
     required this.ctrlActive,
@@ -33,9 +39,38 @@ class TerminalToolbar extends StatefulWidget {
 }
 
 class _TerminalToolbarState extends State<TerminalToolbar> {
+  // While a scroll button is held, the sequence is re-sent on this interval
+  // so the pane keeps scrolling until the finger lifts.
+  static const Duration _scrollRepeatInterval = Duration(milliseconds: 120);
+
+  // Page-up / page-down escape sequences, sent by the toolbar scroll buttons so
+  // apps that page on these keys (Claude, pagers) can be scrolled without a
+  // physical keyboard.
+  static const String _pageUp = '\x1b[5~';
+  static const String _pageDown = '\x1b[6~';
+
   _ToolbarGroup _group = _ToolbarGroup.primary;
+  Timer? _scrollTimer;
 
   void _setGroup(_ToolbarGroup g) => setState(() => _group = g);
+
+  void _startScroll(String seq) {
+    widget.onKey(seq); // fire once immediately for a responsive first scroll
+    _scrollTimer?.cancel();
+    _scrollTimer =
+        Timer.periodic(_scrollRepeatInterval, (_) => widget.onKey(seq));
+  }
+
+  void _stopScroll() {
+    _scrollTimer?.cancel();
+    _scrollTimer = null;
+  }
+
+  @override
+  void dispose() {
+    _scrollTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +129,7 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
       ],
       if (widget.onKeyboardToggle != null) _buildKeyboardButton(),
       _buildSnippetButton(),
+      _buildCopyButton(),
       _divider(vertical),
       _buildKeyButton(context, 'Enter', '\r', vertical),
       _buildKeyButton(context, '\u2191', '\x1b[A', vertical),
@@ -101,6 +137,11 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
       _buildKeyButton(context, '\u2190', '\x1b[D', vertical),
       _buildKeyButton(context, '\u2192', '\x1b[C', vertical),
       _buildKeyButton(context, 'C-c', '\x03', vertical),
+      _divider(vertical),
+      _buildScrollButton(context, '🖱↑', mouseWheelUp, 'Scroll up', vertical),
+      _buildScrollButton(context, '🖱↓', mouseWheelDown, 'Scroll down', vertical),
+      _buildScrollButton(context, 'PgUp', _pageUp, 'Page up', vertical),
+      _buildScrollButton(context, 'PgDn', _pageDown, 'Page down', vertical),
       _divider(vertical),
       _buildGroupButton(context, 'Keys', _ToolbarGroup.keys, vertical),
       _buildGroupButton(context, 'tmux', _ToolbarGroup.tmux, vertical),
@@ -158,8 +199,8 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
       _buildTmuxButton('[', '[', vertical),
       _buildTmuxButton(']', ']', vertical),
       _divider(vertical),
-      _buildKeyButton(context, 'PgUp', '\x1b[5~', vertical),
-      _buildKeyButton(context, 'PgDn', '\x1b[6~', vertical),
+      _buildKeyButton(context, 'PgUp', _pageUp, vertical),
+      _buildKeyButton(context, 'PgDn', _pageDown, vertical),
     ];
   }
 
@@ -198,6 +239,14 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
       icon: const Icon(Icons.code, size: 20),
       tooltip: 'Snippets',
       onPressed: widget.onSnippets,
+    );
+  }
+
+  Widget _buildCopyButton() {
+    return IconButton(
+      icon: const Icon(Icons.content_copy, size: 20),
+      tooltip: 'Copy selection',
+      onPressed: widget.onCopy,
     );
   }
 
@@ -283,6 +332,35 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
               : const EdgeInsets.symmetric(horizontal: 6),
         ),
         child: Text(label, style: const TextStyle(fontSize: 13)),
+      ),
+    );
+  }
+
+  Widget _buildScrollButton(
+      BuildContext context, String label, String seq, String tooltip, bool vertical) {
+    return Padding(
+      padding: vertical
+          ? const EdgeInsets.symmetric(vertical: 1)
+          : const EdgeInsets.symmetric(horizontal: 2),
+      child: Tooltip(
+        message: tooltip,
+        child: Listener(
+          onPointerDown: (_) => _startScroll(seq),
+          onPointerUp: (_) => _stopScroll(),
+          onPointerCancel: (_) => _stopScroll(),
+          child: TextButton(
+            // Pointer events drive the scroll; keep an empty handler so the
+            // button still renders enabled and shows a tap ripple.
+            onPressed: () {},
+            style: TextButton.styleFrom(
+              minimumSize: vertical ? const Size(48, 36) : const Size(44, 48),
+              padding: vertical
+                  ? const EdgeInsets.symmetric(vertical: 4)
+                  : const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            child: Text(label, style: TextStyle(fontSize: vertical ? 12 : 13)),
+          ),
+        ),
       ),
     );
   }

@@ -108,8 +108,14 @@ class SshService {
       final safeName =
           connection.tmuxSession!.replaceAll(RegExp(r'[^\w\-]'), '');
       if (safeName.isNotEmpty) {
+        // `\; set -g mouse on` chains a tmux command onto the attach/new so
+        // mouse reporting is enabled at attach time (not typed into whatever
+        // app is in the foreground). Without it tmux ignores the terminal's
+        // scroll-wheel and toolbar wheel buttons, so the pane can't be
+        // scrolled to view history.
         shell.write(utf8.encode(
-          'tmux attach-session -t $safeName || tmux new-session -s $safeName\n',
+          'tmux attach-session -t $safeName \\; set -g mouse on '
+          '|| tmux new-session -s $safeName \\; set -g mouse on\n',
         ));
       }
     } else if (connection.startupCommand != null &&

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -36,7 +37,7 @@ class LocalShellService {
     );
 
     pty.output.listen((data) {
-      session.writeToTerminal(String.fromCharCodes(data));
+      session.writeToTerminal(utf8.decode(data, allowMalformed: true));
     });
 
     pty.exitCode.then((_) {
@@ -45,7 +46,7 @@ class LocalShellService {
 
     // Normalize soft-keyboard Enter so TUIs see '\r' like hardware Enter.
     terminal.onOutput = (data) =>
-        pty.write(Uint8List.fromList(normalizeSoftEnter(data).codeUnits));
+        pty.write(Uint8List.fromList(utf8.encode(normalizeSoftEnter(data))));
     terminal.onResize = (width, height, pw, ph) => pty.resize(height, width);
 
     return session;

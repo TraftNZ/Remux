@@ -118,8 +118,11 @@ class MoshService {
           connection.tmuxSession!.replaceAll(RegExp(r'[^\w\-]'), '');
       if (safeName.isNotEmpty) {
         Future.delayed(const Duration(milliseconds: 800), () {
+          // `\; set -g mouse on` enables mouse reporting at attach time so the
+          // scroll wheel and toolbar wheel buttons can scroll the pane history.
           pty.write(Uint8List.fromList(utf8.encode(
-            'tmux attach-session -t $safeName || tmux new-session -s $safeName\n',
+            'tmux attach-session -t $safeName \\; set -g mouse on '
+            '|| tmux new-session -s $safeName \\; set -g mouse on\n',
           )));
         });
       }
