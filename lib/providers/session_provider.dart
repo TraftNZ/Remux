@@ -15,6 +15,8 @@ import '../models/terminal_session.dart';
 import '../services/local_shell_service.dart';
 import '../services/mosh_service.dart';
 import '../services/ssh_service.dart';
+import 'connections_provider.dart';
+import 'identities_provider.dart';
 
 final sshServiceProvider = Provider<SshService>((ref) => SshService());
 final localShellServiceProvider =
@@ -63,6 +65,7 @@ class SessionNotifier extends Notifier<SessionState> {
       session = await ssh.connect(
         connection: connection,
         identity: identity,
+        jumpHosts: await _resolveJumpHosts(connection),
         onDisconnected: _onSessionDisconnected,
       );
       state = state.copyWith(
@@ -74,6 +77,17 @@ class SessionNotifier extends Notifier<SessionState> {
       session?.dispose();
       rethrow;
     }
+  }
+
+  /// Loads the saved connections/identities needed to resolve [connection]'s
+  /// bridge chain. See [resolveJumpHosts].
+  Future<List<SshHop>> _resolveJumpHosts(Connection connection) async {
+    if (connection.jumpHostId == null) return const [];
+    return resolveJumpHosts(
+      connection,
+      await ref.read(connectionsProvider.future),
+      await ref.read(identitiesProvider.future),
+    );
   }
 
   // ── Local shell ───────────────────────────────────────────────────────────
@@ -204,6 +218,7 @@ class SessionNotifier extends Notifier<SessionState> {
         final newSession = await ref.read(sshServiceProvider).connect(
               connection: oldSession.connection,
               identity: oldSession.identity,
+              jumpHosts: await _resolveJumpHosts(oldSession.connection),
               existingTerminal: oldSession.terminal,
               onDisconnected: _onSessionDisconnected,
             );

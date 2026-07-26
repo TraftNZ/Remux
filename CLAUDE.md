@@ -28,6 +28,8 @@ Flutter SSH terminal app (Android + iOS) for managing remote compute sessions. I
 ## Key Patterns
 - Identities are separate from Connections (change password once, updates everywhere)
 - Connections can specify a tmux session name for auto-attach
+- Connections can set `jumpHostId` to another connection — SSH tunnels through it (ProxyJump); chains supported, SSH only
+- Connections can define `portForwards` (local `-L` / remote `-R` tunnels) — started on connect and after each auto-reconnect, SSH only
 - Snippets are custom commands executable in any active terminal session
 - Multiple concurrent SSH sessions with tab switching
 

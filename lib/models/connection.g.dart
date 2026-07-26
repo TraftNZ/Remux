@@ -18,6 +18,12 @@ Connection _$ConnectionFromJson(Map<String, dynamic> json) => Connection(
   tmuxSession: json['tmuxSession'] as String?,
   startupCommand: json['startupCommand'] as String?,
   group: json['group'] as String?,
+  jumpHostId: json['jumpHostId'] as String?,
+  portForwards:
+      (json['portForwards'] as List<dynamic>?)
+          ?.map((e) => PortForward.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$ConnectionToJson(Connection instance) =>
@@ -31,6 +37,8 @@ Map<String, dynamic> _$ConnectionToJson(Connection instance) =>
       'tmuxSession': instance.tmuxSession,
       'startupCommand': instance.startupCommand,
       'group': instance.group,
+      'jumpHostId': instance.jumpHostId,
+      'portForwards': instance.portForwards.map((e) => e.toJson()).toList(),
     };
 
 const _$ConnectionTypeEnumMap = {

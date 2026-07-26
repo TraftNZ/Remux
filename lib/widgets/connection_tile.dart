@@ -67,12 +67,7 @@ class _ConnectionTileState extends ConsumerState<ConnectionTile> {
               child: Icon(_typeIcon, size: 18),
             ),
             title: Text(widget.connection.name),
-            subtitle: Text(
-              widget.connection.type == ConnectionType.mosh
-                  ? widget.connection.host
-                  : '${widget.connection.host}:${widget.connection.port}'
-                      '${widget.connection.tmuxSession != null ? ' (tmux: ${widget.connection.tmuxSession})' : ''}',
-            ),
+            subtitle: Text(_subtitle()),
             trailing: _connecting
                 ? null
                 : PopupMenuButton<_ConnectionAction>(
@@ -110,6 +105,27 @@ class _ConnectionTileState extends ConsumerState<ConnectionTile> {
         ],
       ),
     );
+  }
+
+  String _subtitle() {
+    final conn = widget.connection;
+    if (conn.type == ConnectionType.mosh) return conn.host;
+
+    final buffer = StringBuffer('${conn.host}:${conn.port}');
+    if (conn.jumpHostId != null) {
+      final connections = ref.watch(connectionsProvider).valueOrNull ?? [];
+      final bridge =
+          connections.where((c) => c.id == conn.jumpHostId).firstOrNull;
+      buffer.write(' via ${bridge?.name ?? 'missing jump host'}');
+    }
+    if (conn.portForwards.isNotEmpty) {
+      final count = conn.portForwards.length;
+      buffer.write(count == 1 ? ' · 1 forward' : ' · $count forwards');
+    }
+    if (conn.tmuxSession != null) {
+      buffer.write(' (tmux: ${conn.tmuxSession})');
+    }
+    return buffer.toString();
   }
 
   Future<void> _duplicateConnection() async {

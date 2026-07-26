@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:xterm/xterm.dart';
 
+import '../services/port_forward_service.dart';
 import 'connection.dart';
 import 'identity.dart';
 import 'terminal_session.dart';
@@ -13,9 +14,18 @@ class SshSessionState extends TerminalSession {
   final Connection connection;
   final Identity identity;
   final SSHClient client;
+
+  /// Bridge (jump host) clients this session is tunnelled through, outermost
+  /// first. Empty for a direct connection. Closed in reverse on dispose.
+  final List<SSHClient> jumpClients;
+
   final SSHSession shell;
   @override
   final Terminal terminal;
+
+  /// Tunnels running on this session, started from
+  /// [Connection.portForwards]. Closed on dispose.
+  final List<ActivePortForward> portForwards = [];
 
   StreamSubscription<List<int>>? _stdoutSubscription;
   StreamSubscription<List<int>>? _stderrSubscription;
@@ -29,6 +39,7 @@ class SshSessionState extends TerminalSession {
     required this.connection,
     required this.identity,
     required this.client,
+    this.jumpClients = const [],
     required this.shell,
     required this.terminal,
     super.isConnected = true,
@@ -73,8 +84,15 @@ class SshSessionState extends TerminalSession {
   void dispose() {
     _stdoutSubscription?.cancel();
     _stderrSubscription?.cancel();
+    for (final forward in portForwards) {
+      unawaited(forward.close());
+    }
+    portForwards.clear();
     shell.close();
     client.close();
+    for (final jump in jumpClients.reversed) {
+      jump.close();
+    }
     isConnected = false;
   }
 }
