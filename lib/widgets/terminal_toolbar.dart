@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/terminal_mouse.dart';
 
-enum _ToolbarGroup { primary, keys, tmux, fn }
+enum _ToolbarGroup { primary, navigation, keys, tmux, fn }
 
 class TerminalToolbar extends StatefulWidget {
   final void Function(String key) onKey;
@@ -52,13 +52,17 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
   _ToolbarGroup _group = _ToolbarGroup.primary;
   Timer? _scrollTimer;
 
-  void _setGroup(_ToolbarGroup g) => setState(() => _group = g);
+  void _toggleGroup(_ToolbarGroup group) => setState(() {
+    _group = _group == group ? _ToolbarGroup.primary : group;
+  });
 
   void _startScroll(String seq) {
     widget.onKey(seq); // fire once immediately for a responsive first scroll
     _scrollTimer?.cancel();
-    _scrollTimer =
-        Timer.periodic(_scrollRepeatInterval, (_) => widget.onKey(seq));
+    _scrollTimer = Timer.periodic(
+      _scrollRepeatInterval,
+      (_) => widget.onKey(seq),
+    );
   }
 
   void _stopScroll() {
@@ -74,41 +78,83 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.vertical ? _buildVertical(context) : _buildHorizontal(context);
+    return widget.vertical
+        ? _buildVertical(context)
+        : _buildHorizontal(context);
   }
 
   Widget _buildHorizontal(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: _buttons(context, vertical: false),
+    return SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_group != _ToolbarGroup.primary)
+            _buildButtonBar(
+              context,
+              _submenuButtons(context, false),
+              false,
+              _group.name,
+            ),
+          _buildButtonBar(
+            context,
+            _primaryButtons(context, false),
+            false,
+            'primary',
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildVertical(BuildContext context) {
-    return Container(
-      width: 56,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: Column(
-          children: _buttons(context, vertical: true),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_group != _ToolbarGroup.primary)
+          _buildButtonBar(
+            context,
+            _submenuButtons(context, true),
+            true,
+            _group.name,
+          ),
+        _buildButtonBar(
+          context,
+          _primaryButtons(context, true),
+          true,
+          'primary',
         ),
-      ),
+      ],
     );
   }
 
-  List<Widget> _buttons(BuildContext context, {required bool vertical}) {
+  Widget _buildButtonBar(
+    BuildContext context,
+    List<Widget> buttons,
+    bool vertical,
+    String name,
+  ) {
+    return Container(
+      key: ValueKey('$name-${vertical ? 'vertical' : 'horizontal'}'),
+      width: vertical ? 56 : double.infinity,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: !vertical && name != 'primary'
+          ? Wrap(children: buttons)
+          : SingleChildScrollView(
+              scrollDirection: vertical ? Axis.vertical : Axis.horizontal,
+              child: vertical
+                  ? Column(children: buttons)
+                  : Row(children: buttons),
+            ),
+    );
+  }
+
+  List<Widget> _submenuButtons(BuildContext context, bool vertical) {
     switch (_group) {
       case _ToolbarGroup.primary:
-        return _primaryButtons(context, vertical);
+        return [];
+      case _ToolbarGroup.navigation:
+        return _navigationButtons(context, vertical);
       case _ToolbarGroup.keys:
         return _keysButtons(context, vertical);
       case _ToolbarGroup.tmux:
@@ -132,29 +178,51 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
       _buildCopyButton(),
       _divider(vertical),
       _buildKeyButton(context, 'Enter', '\r', vertical),
-      _buildKeyButton(context, '\u2191', '\x1b[A', vertical),
-      _buildKeyButton(context, '\u2193', '\x1b[B', vertical),
-      _buildKeyButton(context, '\u2190', '\x1b[D', vertical),
-      _buildKeyButton(context, '\u2192', '\x1b[C', vertical),
       _buildKeyButton(context, 'C-c', '\x03', vertical),
       _divider(vertical),
-      _buildScrollButton(context, '🖱↑', mouseWheelUp, 'Scroll up', vertical),
-      _buildScrollButton(context, '🖱↓', mouseWheelDown, 'Scroll down', vertical),
-      _buildScrollButton(context, 'PgUp', _pageUp, 'Page up', vertical),
-      _buildScrollButton(context, 'PgDn', _pageDown, 'Page down', vertical),
-      _divider(vertical),
+      _buildGroupButton(context, 'Nav', _ToolbarGroup.navigation, vertical),
       _buildGroupButton(context, 'Keys', _ToolbarGroup.keys, vertical),
       _buildGroupButton(context, 'tmux', _ToolbarGroup.tmux, vertical),
       _buildGroupButton(context, 'Fn', _ToolbarGroup.fn, vertical),
     ];
   }
 
+  List<Widget> _navigationButtons(BuildContext context, bool vertical) {
+    return [
+      _buildKeyButton(context, '\u2191', '\x1b[A', vertical),
+      _buildKeyButton(context, '\u2193', '\x1b[B', vertical),
+      _buildKeyButton(context, '\u2190', '\x1b[D', vertical),
+      _buildKeyButton(context, '\u2192', '\x1b[C', vertical),
+      if (vertical) _divider(vertical),
+      _buildScrollButton(context, '🖱↑', mouseWheelUp, 'Scroll up', vertical),
+      _buildScrollButton(
+        context,
+        '🖱↓',
+        mouseWheelDown,
+        'Scroll down',
+        vertical,
+      ),
+      _buildScrollButton(context, 'PgUp', _pageUp, 'Page up', vertical),
+      _buildScrollButton(context, 'PgDn', _pageDown, 'Page down', vertical),
+    ];
+  }
+
   List<Widget> _keysButtons(BuildContext context, bool vertical) {
     return [
-      _buildBackButton(),
-      _divider(vertical),
-      _buildToggleButton(context, 'Ctrl', widget.ctrlActive, widget.onCtrlToggle, vertical),
-      _buildToggleButton(context, 'Alt', widget.altActive, widget.onAltToggle, vertical),
+      _buildToggleButton(
+        context,
+        'Ctrl',
+        widget.ctrlActive,
+        widget.onCtrlToggle,
+        vertical,
+      ),
+      _buildToggleButton(
+        context,
+        'Alt',
+        widget.altActive,
+        widget.onAltToggle,
+        vertical,
+      ),
       _buildKeyButton(context, 'Esc', '\x1b', vertical),
       _buildKeyButton(context, 'Tab', '\t', vertical),
       _buildKeyButton(context, 'S-Tab', '\x1b[Z', vertical),
@@ -187,18 +255,16 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
           );
 
     return [
-      _buildBackButton(),
-      _divider(vertical),
       tmuxLabel,
-      _divider(vertical),
+      if (vertical) _divider(vertical),
       _buildTmuxButton('c', 'c', vertical),
       _buildTmuxButton('d', 'd', vertical),
       for (final i in List.generate(10, (n) => n))
         _buildTmuxButton('$i', '$i', vertical),
-      _divider(vertical),
+      if (vertical) _divider(vertical),
       _buildTmuxButton('[', '[', vertical),
       _buildTmuxButton(']', ']', vertical),
-      _divider(vertical),
+      if (vertical) _divider(vertical),
       _buildKeyButton(context, 'PgUp', _pageUp, vertical),
       _buildKeyButton(context, 'PgDn', _pageDown, vertical),
     ];
@@ -220,9 +286,8 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
       (label: 'F12', key: '\x1b[24~'),
     ];
     return [
-      _buildBackButton(),
-      _divider(vertical),
-      for (final f in fnKeys) _buildKeyButton(context, f.label, f.key, vertical),
+      for (final f in fnKeys)
+        _buildKeyButton(context, f.label, f.key, vertical),
     ];
   }
 
@@ -261,38 +326,43 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
     );
   }
 
-  Widget _buildBackButton() {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back, size: 20),
-      tooltip: 'Back',
-      onPressed: () => _setGroup(_ToolbarGroup.primary),
-    );
-  }
-
-  Widget _buildGroupButton(BuildContext context, String label,
-      _ToolbarGroup target, bool vertical) {
+  Widget _buildGroupButton(
+    BuildContext context,
+    String label,
+    _ToolbarGroup target,
+    bool vertical,
+  ) {
+    final active = _group == target;
     return Padding(
       padding: vertical
           ? const EdgeInsets.symmetric(vertical: 1)
           : const EdgeInsets.symmetric(horizontal: 2),
       child: TextButton(
-        onPressed: () => _setGroup(target),
+        onPressed: () => _toggleGroup(target),
         style: TextButton.styleFrom(
+          backgroundColor: active
+              ? Theme.of(context).colorScheme.primaryContainer
+              : null,
           minimumSize: vertical ? const Size(48, 36) : const Size(44, 48),
           padding: vertical
               ? const EdgeInsets.symmetric(vertical: 4)
               : const EdgeInsets.symmetric(horizontal: 8),
         ),
         child: Text(
-          '$label \u25b8',
+          '$label ${active ? '\u25be' : '\u25b8'}',
           style: TextStyle(fontSize: vertical ? 12 : 13),
         ),
       ),
     );
   }
 
-  Widget _buildToggleButton(BuildContext context, String label, bool active,
-      VoidCallback onToggle, bool vertical) {
+  Widget _buildToggleButton(
+    BuildContext context,
+    String label,
+    bool active,
+    VoidCallback onToggle,
+    bool vertical,
+  ) {
     return Padding(
       padding: vertical
           ? const EdgeInsets.symmetric(vertical: 2)
@@ -300,8 +370,9 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
       child: TextButton(
         onPressed: onToggle,
         style: TextButton.styleFrom(
-          backgroundColor:
-              active ? Theme.of(context).colorScheme.primaryContainer : null,
+          backgroundColor: active
+              ? Theme.of(context).colorScheme.primaryContainer
+              : null,
           minimumSize: vertical ? const Size(48, 36) : const Size(44, 48),
           padding: vertical
               ? const EdgeInsets.symmetric(vertical: 4)
@@ -337,7 +408,12 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
   }
 
   Widget _buildScrollButton(
-      BuildContext context, String label, String seq, String tooltip, bool vertical) {
+    BuildContext context,
+    String label,
+    String seq,
+    String tooltip,
+    bool vertical,
+  ) {
     return Padding(
       padding: vertical
           ? const EdgeInsets.symmetric(vertical: 1)
@@ -386,7 +462,11 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
   }
 
   Widget _buildKeyButton(
-      BuildContext context, String label, String key, bool vertical) {
+    BuildContext context,
+    String label,
+    String key,
+    bool vertical,
+  ) {
     return Padding(
       padding: vertical
           ? const EdgeInsets.symmetric(vertical: 1)
@@ -409,8 +489,7 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
               ? const EdgeInsets.symmetric(vertical: 4)
               : const EdgeInsets.symmetric(horizontal: 8),
         ),
-        child:
-            Text(label, style: TextStyle(fontSize: vertical ? 12 : 13)),
+        child: Text(label, style: TextStyle(fontSize: vertical ? 12 : 13)),
       ),
     );
   }

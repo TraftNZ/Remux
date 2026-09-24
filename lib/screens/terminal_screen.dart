@@ -42,6 +42,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   bool _sidebarVisible = true;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _terminalFocusNode = FocusNode();
+  final _terminalViewKey = GlobalKey<TerminalViewState>();
+  bool _softKeyboardEnabled = true;
   // Shared across sessions: only the active session's TerminalView is mounted
   // at a time, so a single controller is enough to track the live selection
   // for the toolbar Copy action.
@@ -169,10 +171,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   void _toggleSoftKeyboard() {
     final visible = MediaQuery.of(context).viewInsets.bottom > 0;
     if (visible) {
+      setState(() => _softKeyboardEnabled = false);
       SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
     } else {
-      _terminalFocusNode.requestFocus();
-      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      setState(() => _softKeyboardEnabled = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _terminalViewKey.currentState?.requestKeyboard();
+      });
     }
   }
 
@@ -231,9 +236,12 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       children: [
         TerminalView(
           activeSession.terminal,
+          key: _terminalViewKey,
           controller: _terminalController,
           focusNode: _terminalFocusNode,
           autofocus: true,
+          hardwareKeyboardOnly: (Platform.isAndroid || Platform.isIOS) &&
+              !_softKeyboardEnabled,
           deleteDetection: true,
           theme: terminalTheme,
           textStyle: TerminalStyle(
