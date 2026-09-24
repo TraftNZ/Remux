@@ -91,7 +91,7 @@ void main() {
     expect(find.text('9'), findsOneWidget);
     expect(
       tester.getTopLeft(find.text('9')).dy,
-      greaterThan(tester.getTopLeft(find.text('0')).dy),
+      tester.getTopLeft(find.text('0')).dy,
     );
 
     await tester.ensureVisible(find.text('Fn ▸'));
@@ -100,6 +100,39 @@ void main() {
     expect(find.text('0'), findsNothing);
     expect(find.text('F12'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('horizontal submenu scrolls to offscreen keys', (tester) async {
+    tester.view.physicalSize = const Size(360, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final keys = <String>[];
+    await showToolbar(tester, vertical: false, keys: keys);
+
+    await tester.ensureVisible(find.text('Fn ▸'));
+    await tester.tap(find.text('Fn ▸'));
+    await tester.pumpAndSettle();
+
+    final submenu = find.byKey(const ValueKey('fn-horizontal'));
+    final scrollable = find.descendant(
+      of: submenu,
+      matching: find.byType(Scrollable),
+    );
+    expect(scrollable, findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('F12')).dy,
+      tester.getTopLeft(find.text('F1')).dy,
+    );
+    expect(
+      tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
+      greaterThan(0),
+    );
+
+    await tester.drag(scrollable, const Offset(-800, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('F12'));
+    expect(keys, ['\x1b[24~']);
   });
 
   testWidgets('vertical submenu stays beside primary bar and can switch', (

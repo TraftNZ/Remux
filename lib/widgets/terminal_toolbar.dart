@@ -138,14 +138,10 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
       key: ValueKey('$name-${vertical ? 'vertical' : 'horizontal'}'),
       width: vertical ? 56 : double.infinity,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: !vertical && name != 'primary'
-          ? Wrap(children: buttons)
-          : SingleChildScrollView(
-              scrollDirection: vertical ? Axis.vertical : Axis.horizontal,
-              child: vertical
-                  ? Column(children: buttons)
-                  : Row(children: buttons),
-            ),
+      child: SingleChildScrollView(
+        scrollDirection: vertical ? Axis.vertical : Axis.horizontal,
+        child: vertical ? Column(children: buttons) : Row(children: buttons),
+      ),
     );
   }
 
