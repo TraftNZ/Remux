@@ -1,0 +1,12 @@
+name: mosh_dart
+version: 0.1.0
+description: Dart implementation of Mosh protocol crypto (AES-128-OCB3).
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  pointycastle: ^4.0.0
+
+dev_dependencies:
+  test: ^1.24.0
